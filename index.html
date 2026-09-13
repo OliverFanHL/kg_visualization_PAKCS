@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Browse the complete provenance-aware knowledge graph used in the PAKCS additive-manufacturing scheduling study.">
+  <title>PAKCS Manufacturing Knowledge Graph</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='7' cy='16' r='4' fill='%2317365d'/%3E%3Ccircle cx='25' cy='8' r='4' fill='%23198c8c'/%3E%3Ccircle cx='25' cy='24' r='4' fill='%23d97706'/%3E%3Cpath d='M11 15 21 9M11 17l10 6' stroke='%2352616b' stroke-width='2'/%3E%3C/svg%3E">
+  <style>
+    :root { color-scheme: light; --ink:#111827; --muted:#5f6b76; --navy:#17365d; --teal:#198c8c; --line:#d8e0e7; --soft:#f4f7f9; --decision:#e9f3f1; --representation:#edf3f8; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:Arial, Helvetica, sans-serif; color:var(--ink); background:#fff; line-height:1.45; }
+    header { border-bottom:1px solid var(--line); padding:24px clamp(18px,4vw,56px) 20px; background:linear-gradient(115deg,#fff 0%,#f5f9fb 100%); }
+    .eyebrow { margin:0 0 4px; color:var(--teal); font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+    h1 { margin:0; color:var(--navy); font-size:clamp(24px,3vw,38px); line-height:1.15; letter-spacing:-.025em; }
+    .lede { max-width:920px; margin:10px 0 0; color:var(--muted); font-size:16px; }
+    main { max-width:1500px; margin:0 auto; padding:24px clamp(18px,4vw,56px) 48px; }
+    .metrics { display:grid; grid-template-columns:repeat(5,minmax(130px,1fr)); gap:12px; margin-bottom:22px; }
+    .metric { border:1px solid var(--line); border-radius:8px; padding:14px 16px; background:#fff; }
+    .metric strong { display:block; color:var(--navy); font-size:24px; line-height:1.1; }
+    .metric span { color:var(--muted); font-size:13px; }
+    .graph-section { margin-bottom:24px; border:1px solid var(--line); border-radius:9px; overflow:hidden; background:#fff; }
+    .section-head { display:flex; align-items:flex-end; justify-content:space-between; gap:18px; padding:17px 18px 14px; border-bottom:1px solid var(--line); }
+    .section-head h2 { margin:0; color:var(--navy); font-size:19px; }
+    .section-head p { max-width:760px; margin:4px 0 0; color:var(--muted); font-size:14px; }
+    .graph-controls { display:grid; grid-template-columns:minmax(220px,1fr) 125px auto; align-items:end; gap:9px; min-width:min(520px,100%); }
+    .graph-controls button { min-height:40px; }
+    .graph-shell { display:grid; grid-template-columns:minmax(0,1fr) 280px; min-height:500px; }
+    .graph-canvas { position:relative; min-width:0; min-height:500px; overflow:hidden; background:radial-gradient(circle at 50% 45%,#fff 0,#f8fafb 72%,#f0f4f6 100%); }
+    #graph { display:block; width:100%; height:500px; cursor:grab; touch-action:none; }
+    #graph.dragging { cursor:grabbing; }
+    .graph-edge { fill:none; stroke:#8ea0ae; stroke-width:1.5; opacity:.68; transition:opacity .14s,stroke-width .14s,stroke .14s; }
+    .graph-edge.representation { stroke:#8395a4; stroke-dasharray:5 4; }
+    .graph-edge.mask { stroke:#b33a3a; stroke-width:2; }
+    .edge-hit { fill:none; stroke:transparent; stroke-width:12; cursor:pointer; }
+    .graph-node { cursor:pointer; transition:opacity .14s; }
+    .graph-node circle { stroke:#fff; stroke-width:2.5; filter:url(#nodeShadow); transition:r .14s,stroke-width .14s; }
+    .graph-node text { fill:#111827; font:700 12px Arial, Helvetica, sans-serif; text-anchor:middle; paint-order:stroke; stroke:#fff; stroke-width:3.5px; stroke-linejoin:round; pointer-events:none; }
+    .graph-node.focus circle { stroke:var(--navy); stroke-width:4; }
+    .graph-node.active circle { stroke:#111827; stroke-width:4; }
+    .graph-dim { opacity:.11 !important; }
+    .graph-active { opacity:1 !important; stroke-width:3.2 !important; }
+    .graph-side { padding:18px; border-left:1px solid var(--line); background:#fbfcfd; }
+    .graph-side h3 { margin:0 0 4px; color:var(--navy); font-size:16px; }
+    .graph-side p { margin:0 0 14px; color:var(--muted); font-size:13px; }
+    .graph-detail { display:grid; grid-template-columns:86px 1fr; gap:7px 9px; margin:0; font-size:13px; }
+    .graph-detail dt { color:var(--muted); font-weight:700; }
+    .graph-detail dd { margin:0; overflow-wrap:anywhere; }
+    .graph-detail a { color:var(--teal); }
+    .graph-legend { display:grid; gap:7px; margin-top:18px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; }
+    .legend-row { display:flex; align-items:center; gap:8px; }
+    .legend-dot { width:11px; height:11px; border-radius:50%; flex:0 0 auto; }
+    .legend-line { width:24px; height:0; border-top:2px solid #8ea0ae; flex:0 0 auto; }
+    .legend-line.dashed { border-top-style:dashed; }
+    .graph-tools { position:absolute; right:10px; top:10px; display:flex; gap:5px; }
+    .graph-tools button { min-width:35px; height:35px; padding:0 9px; background:rgba(255,255,255,.92); }
+    .graph-status { position:absolute; left:12px; bottom:10px; padding:6px 9px; border:1px solid var(--line); border-radius:5px; color:var(--muted); background:rgba(255,255,255,.92); font-size:12px; pointer-events:none; }
+    .graph-tooltip { position:absolute; z-index:5; max-width:320px; padding:8px 10px; border:1px solid #bfc9d2; border-radius:5px; color:#fff; background:rgba(23,54,93,.95); font-size:12px; line-height:1.35; pointer-events:none; transform:translate(12px,12px); }
+    .graph-tooltip[hidden] { display:none; }
+    .toolbar { display:grid; grid-template-columns:minmax(240px,2fr) repeat(3,minmax(150px,1fr)); gap:10px; padding:14px; border:1px solid var(--line); border-radius:8px 8px 0 0; background:var(--soft); }
+    label { display:block; color:var(--muted); font-size:12px; font-weight:700; margin-bottom:5px; }
+    input, select { width:100%; min-height:40px; border:1px solid #bfc9d2; border-radius:5px; padding:8px 10px; color:var(--ink); background:#fff; font:14px Arial, Helvetica, sans-serif; }
+    input:focus, select:focus, button:focus-visible { outline:3px solid rgba(25,140,140,.2); border-color:var(--teal); }
+    .table-wrap { border:1px solid var(--line); border-top:0; overflow:auto; max-height:640px; }
+    table { width:100%; min-width:1180px; border-collapse:collapse; font-size:13px; }
+    th { position:sticky; top:0; z-index:2; padding:10px 11px; color:var(--navy); background:#eef3f6; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; }
+    td { padding:9px 11px; border-bottom:1px solid #e8edf1; vertical-align:top; }
+    tbody tr { cursor:pointer; }
+    tbody tr:hover { background:#f7fafb; }
+    code { font:12.5px "Courier New", monospace; color:#243746; }
+    .pill { display:inline-block; border-radius:999px; padding:2px 8px; font-size:12px; white-space:nowrap; }
+    .pill.decision { background:var(--decision); color:#176b60; }
+    .pill.representation { background:var(--representation); color:#315f7e; }
+    .pill.mask { background:#fbe9e8; color:#9a2f2f; }
+    .footerbar { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 14px; border:1px solid var(--line); border-top:0; border-radius:0 0 8px 8px; }
+    .count { color:var(--muted); font-size:13px; }
+    .pager { display:flex; align-items:center; gap:8px; }
+    button { border:1px solid #b9c5ce; border-radius:5px; padding:7px 11px; color:var(--navy); background:#fff; font:700 13px Arial, Helvetica, sans-serif; cursor:pointer; }
+    button:hover:not(:disabled) { border-color:var(--teal); color:var(--teal); }
+    button:disabled { cursor:not-allowed; opacity:.4; }
+    button.primary { border-color:var(--navy); color:#fff; background:var(--navy); }
+    button.primary:hover:not(:disabled) { border-color:var(--teal); color:#fff; background:var(--teal); }
+    .dialog-actions { display:flex; align-items:center; gap:8px; }
+    .downloads { display:flex; flex-wrap:wrap; gap:9px; margin-top:18px; }
+    .downloads a { color:var(--navy); border-bottom:1px solid #aab8c3; text-decoration:none; font-size:13px; }
+    .downloads a:hover { color:var(--teal); border-color:var(--teal); }
+    dialog { width:min(760px,calc(100vw - 32px)); border:0; border-radius:10px; padding:0; box-shadow:0 24px 70px rgba(23,54,93,.25); }
+    dialog::backdrop { background:rgba(17,24,39,.45); }
+    .dialog-head { display:flex; justify-content:space-between; align-items:center; padding:18px 20px; border-bottom:1px solid var(--line); }
+    .dialog-head h2 { margin:0; color:var(--navy); font-size:19px; }
+    .detail { display:grid; grid-template-columns:150px 1fr; gap:9px 16px; padding:20px; margin:0; font-size:14px; }
+    .detail dt { color:var(--muted); font-weight:700; }
+    .detail dd { margin:0; overflow-wrap:anywhere; }
+    .detail a { color:var(--teal); }
+    .empty { padding:40px 16px; color:var(--muted); text-align:center; }
+    @media (max-width:980px) { .metrics { grid-template-columns:repeat(2,1fr); } .section-head { align-items:stretch; flex-direction:column; } .graph-controls { min-width:0; } .graph-shell { grid-template-columns:1fr; } .graph-side { border-top:1px solid var(--line); border-left:0; } .toolbar { grid-template-columns:1fr 1fr; } }
+    @media (max-width:560px) { .metrics,.toolbar,.graph-controls { grid-template-columns:1fr; } .detail { grid-template-columns:1fr; gap:3px; } .detail dd { margin-bottom:9px; } .footerbar { align-items:flex-start; flex-direction:column; } #graph,.graph-canvas { height:440px; min-height:440px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">PAKCS research data</p>
+    <h1>Manufacturing Knowledge Graph</h1>
+    <p class="lede">Search the complete validated graph used to compile material-machine eligibility, recommendation evidence, profile context, and assignment provenance in the PAKCS scheduling study.</p>
+  </header>
+  <main>
+    <section class="metrics" aria-label="Knowledge graph summary">
+      <div class="metric"><strong id="factMetric">-</strong><span>validated facts</span></div>
+      <div class="metric"><strong id="decisionMetric">-</strong><span>decision-bearing facts</span></div>
+      <div class="metric"><strong id="contextMetric">-</strong><span>contextual facts</span></div>
+      <div class="metric"><strong id="sourceMetric">-</strong><span>source records</span></div>
+      <div class="metric"><strong id="maskMetric">-</strong><span>hard-mask facts</span></div>
+    </section>
+
+    <!-- EDITABLE GRAPH MARKUP: controls, SVG canvas, and detail panel. -->
+    <section class="graph-section" aria-labelledby="graphTitle">
+      <div class="section-head">
+        <div>
+          <h2 id="graphTitle">Interactive graph neighborhood</h2>
+          <p>Focus on an entity, then hover or select nodes and relations to trace their local evidence. Solid red edges can constrain feasibility; dashed edges provide representation context.</p>
+        </div>
+        <div class="graph-controls">
+          <div><label for="graphSeed">Focus entity</label><input id="graphSeed" list="entitySuggestions" value="FIBERON_PA6_CF20" autocomplete="off"><datalist id="entitySuggestions"></datalist></div>
+          <div><label for="graphDepth">Neighborhood</label><select id="graphDepth"><option value="1">1 hop</option><option value="2" selected>2 hops</option></select></div>
+          <button id="loadGraph" class="primary" type="button">Explore</button>
+        </div>
+      </div>
+      <div class="graph-shell">
+        <div class="graph-canvas">
+          <svg id="graph" viewBox="0 0 900 500" role="img" aria-label="Interactive node-link view of the manufacturing knowledge graph">
+            <defs>
+              <filter id="nodeShadow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="1" stdDeviation="1.8" flood-color="#17365d" flood-opacity=".18"/></filter>
+              <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8ea0ae"/></marker>
+              <marker id="arrowMask" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b33a3a"/></marker>
+            </defs>
+            <g id="graphViewport"><g id="graphEdges"></g><g id="graphNodes"></g></g>
+          </svg>
+          <div class="graph-tools" aria-label="Graph view controls"><button id="zoomIn" type="button" aria-label="Zoom in">+</button><button id="zoomOut" type="button" aria-label="Zoom out">−</button><button id="resetView" type="button">Fit</button></div>
+          <div id="graphTooltip" class="graph-tooltip" hidden></div>
+          <div id="graphStatus" class="graph-status" aria-live="polite"></div>
+        </div>
+        <aside class="graph-side" aria-live="polite">
+          <h3 id="selectionTitle">Explore a local neighborhood</h3>
+          <p id="selectionHint">Hover to highlight direct connections. Select a node or edge to keep its evidence in view.</p>
+          <dl id="graphDetail" class="graph-detail"></dl>
+          <button id="centerSelection" type="button" hidden>Center on selected node</button>
+          <div class="graph-legend" aria-label="Graph legend">
+            <div class="legend-row"><span class="legend-dot" style="background:#198c8c"></span>Printer model</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#7655a6"></span>Material or material family</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#d97706"></span>Measured or categorical value</div>
+            <div class="legend-row"><span class="legend-line" style="border-color:#b33a3a"></span>May drive hard feasibility mask</div>
+            <div class="legend-row"><span class="legend-line dashed"></span>Representation context</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section aria-label="Knowledge graph fact explorer">
+      <div class="toolbar">
+        <div><label for="search">Search subject, relation, object, or source</label><input id="search" type="search" placeholder="e.g., PA6, BUILD_VOLUME_MM, BAMBU_X1C"></div>
+        <div><label for="layer">Semantic layer</label><select id="layer"><option value="">All layers</option><option value="decision">Decision bearing</option><option value="representation">Contextual representation</option></select></div>
+        <div><label for="relation">Relation</label><select id="relation"><option value="">All relations</option></select></div>
+        <div><label for="mask">Decision authority</label><select id="mask"><option value="">All facts</option><option value="True">May drive hard mask</option><option value="False">Does not drive hard mask</option></select></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Layer</th><th>Subject</th><th>Relation</th><th>Object</th><th>Semantic role</th><th>Source</th><th>Confidence</th><th>Authority</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div id="empty" class="empty" hidden>No facts match the current filters.</div>
+      </div>
+      <div class="footerbar">
+        <div id="count" class="count" aria-live="polite"></div>
+        <div class="pager"><button id="prev" type="button">Previous</button><span id="pageLabel" class="count"></span><button id="next" type="button">Next</button></div>
+      </div>
+    </section>
+
+    <nav class="downloads" aria-label="Raw data downloads">
+      <strong>Raw data:</strong>
+      <a href="data/facts.csv" download>Facts CSV</a>
+      <a href="data/sources.csv" download>Source registry CSV</a>
+      <a href="data/relation_registry.csv" download>Relation registry CSV</a>
+      <a href="data/validation.json" download>Validation summary JSON</a>
+    </nav>
+  </main>
+
+  <dialog id="detailDialog">
+    <div class="dialog-head"><h2>Fact provenance</h2><div class="dialog-actions"><button id="graphFromFact" type="button">View in graph</button><button id="closeDialog" type="button">Close</button></div></div>
+    <dl id="detail" class="detail"></dl>
+  </dialog>
+
+  <script src="kg_data.js"></script>
+  <script>
+    (() => {
+      const data = window.PAKCS_KG_DATA;
+      const facts = data.facts;
+      const sources = new Map(data.sources.map(source => [source.source_id, source]));
+      const pageSize = 50;
+      let filtered = facts;
+      let page = 0;
+      let activeFact = null;
+      const $ = id => document.getElementById(id);
+      const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+      const number = value => Number(value).toLocaleString('en-US');
+
+      /*
+       * EDITABLE GRAPH SETTINGS
+       * Change these values to adjust the node limit, radii, colors, and labels.
+       * Add an entry to manualPositions to pin a named node at an exact SVG x/y.
+       * No framework or build step is required: save this file and refresh.
+       */
+      const GRAPH_CONFIG = {
+        width: 900,
+        height: 500,
+        maxNodes: 32,
+        maxEdges: 52,
+        centerEdgeLimit: 14,
+        branchEdgeLimit: 4,
+        centerRadius: 18,
+        nodeRadius: 11,
+        labelLength: 19,
+        rings: {
+          1: { xRadius: 215, yRadius: 145, angleOffset: -1.57 },
+          2: { xRadius: 370, yRadius: 215, angleOffset: -1.38 }
+        },
+        colors: {
+          printer_model: '#198c8c',
+          material_product: '#7655a6',
+          material_family: '#9b74bd',
+          profile_or_model: '#2f6690',
+          typed_literal: '#d97706',
+          default: '#52616b'
+        },
+        manualPositions: {
+          /* Example: 'BAMBU_X1C': { x: 450, y: 250 } */
+        }
+      };
+
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const nodeRecords = new Map();
+      const adjacency = new Map();
+      const graphElements = { nodes:new Map(), edges:[] };
+      let visibleGraph = { focus:null, nodes:[], edges:[] };
+      let persistentSelection = null;
+      let view = { x:0, y:0, k:1 };
+
+      const ensureNode = (id, type) => {
+        if (!nodeRecords.has(id)) nodeRecords.set(id, { id, type:type || 'default' });
+        if (!adjacency.has(id)) adjacency.set(id, []);
+      };
+      facts.forEach((fact, index) => {
+        ensureNode(fact.subject, fact.subject_type);
+        ensureNode(fact.object, fact.object_type);
+        adjacency.get(fact.subject).push(index);
+        adjacency.get(fact.object).push(index);
+      });
+
+      [...nodeRecords.values()]
+        .filter(node => node.type !== 'typed_literal')
+        .sort((a,b) => (adjacency.get(b.id).length - adjacency.get(a.id).length) || a.id.localeCompare(b.id))
+        .slice(0,500)
+        .forEach(node => {
+          const option = document.createElement('option');
+          option.value = node.id;
+          $('entitySuggestions').append(option);
+        });
+
+      function svgElement(tag, attributes = {}) {
+        const element = document.createElementNS(SVG_NS, tag);
+        Object.entries(attributes).forEach(([key,value]) => element.setAttribute(key, value));
+        return element;
+      }
+
+      function edgeRank(fact) {
+        if (fact.may_drive_hard_mask === 'True') return 0;
+        if (fact.layer === 'decision') return 1;
+        return 2;
+      }
+
+      function findNode(query) {
+        const text = String(query || '').trim();
+        if (!text) return null;
+        if (nodeRecords.has(text)) return nodeRecords.get(text);
+        const lower = text.toLowerCase();
+        const candidates = [...nodeRecords.values()].filter(node => node.id.toLowerCase().includes(lower));
+        candidates.sort((a,b) => {
+          const exactA = a.id.toLowerCase() === lower ? 0 : a.id.toLowerCase().startsWith(lower) ? 1 : 2;
+          const exactB = b.id.toLowerCase() === lower ? 0 : b.id.toLowerCase().startsWith(lower) ? 1 : 2;
+          return exactA - exactB || adjacency.get(b.id).length - adjacency.get(a.id).length || a.id.localeCompare(b.id);
+        });
+        return candidates[0] || null;
+      }
+
+      function buildNeighborhood(focusId, depth) {
+        const selectedNodes = new Map([[focusId, { ...nodeRecords.get(focusId), distance:0 }]]);
+        const selectedEdges = [];
+        const usedFacts = new Set();
+        let frontier = [focusId];
+        for (let level = 0; level < depth && frontier.length; level += 1) {
+          const next = [];
+          for (const nodeId of frontier) {
+            const candidates = [...(adjacency.get(nodeId) || [])]
+              .sort((a,b) => edgeRank(facts[a]) - edgeRank(facts[b]) || facts[a].relation.localeCompare(facts[b].relation));
+            const perNodeLimit = level === 0 ? GRAPH_CONFIG.centerEdgeLimit : GRAPH_CONFIG.branchEdgeLimit;
+            let accepted = 0;
+            for (const factIndex of candidates) {
+              if (accepted >= perNodeLimit || selectedEdges.length >= GRAPH_CONFIG.maxEdges) break;
+              const fact = facts[factIndex];
+              if (usedFacts.has(fact.fact_id)) continue;
+              const otherId = fact.subject === nodeId ? fact.object : fact.subject;
+              if (!selectedNodes.has(otherId) && selectedNodes.size >= GRAPH_CONFIG.maxNodes) continue;
+              if (!selectedNodes.has(otherId)) {
+                selectedNodes.set(otherId, { ...nodeRecords.get(otherId), distance:level + 1 });
+                next.push(otherId);
+              }
+              usedFacts.add(fact.fact_id);
+              selectedEdges.push(fact);
+              accepted += 1;
+            }
+          }
+          frontier = [...new Set(next)];
+        }
+        return { focus:focusId, nodes:[...selectedNodes.values()], edges:selectedEdges };
+      }
+
+      function layoutNodes(nodes) {
+        const positions = new Map();
+        const center = { x:GRAPH_CONFIG.width / 2, y:GRAPH_CONFIG.height / 2 };
+        positions.set(nodes.find(node => node.distance === 0).id, center);
+        [1,2].forEach(distance => {
+          const ring = nodes.filter(node => node.distance === distance).sort((a,b) => a.id.localeCompare(b.id));
+          const settings = GRAPH_CONFIG.rings[distance];
+          ring.forEach((node,index) => {
+            const angle = settings.angleOffset + (Math.PI * 2 * index / Math.max(1,ring.length));
+            positions.set(node.id, {
+              x:center.x + settings.xRadius * Math.cos(angle),
+              y:center.y + settings.yRadius * Math.sin(angle)
+            });
+          });
+        });
+        Object.entries(GRAPH_CONFIG.manualPositions).forEach(([id,position]) => {
+          if (positions.has(id)) positions.set(id, position);
+        });
+        return positions;
+      }
+
+      function shortLabel(value) {
+        const text = String(value).replace(/^material_family:/,'');
+        return text.length > GRAPH_CONFIG.labelLength ? `${text.slice(0,GRAPH_CONFIG.labelLength - 1)}…` : text;
+      }
+
+      function renderGraph(graph) {
+        visibleGraph = graph;
+        persistentSelection = null;
+        const positions = layoutNodes(graph.nodes);
+        $('graphEdges').replaceChildren();
+        $('graphNodes').replaceChildren();
+        graphElements.nodes.clear();
+        graphElements.edges.length = 0;
+
+        graph.edges.forEach((fact,index) => {
+          const source = positions.get(fact.subject);
+          const target = positions.get(fact.object);
+          if (!source || !target) return;
+          const dx = target.x - source.x;
+          const dy = target.y - source.y;
+          const length = Math.max(1,Math.hypot(dx,dy));
+          const targetRadius = fact.object === graph.focus ? GRAPH_CONFIG.centerRadius : GRAPH_CONFIG.nodeRadius;
+          const x2 = target.x - dx / length * (targetRadius + 5);
+          const y2 = target.y - dy / length * (targetRadius + 5);
+          const pathData = `M ${source.x} ${source.y} L ${x2} ${y2}`;
+          const className = `graph-edge ${fact.layer === 'representation' ? 'representation' : ''} ${fact.may_drive_hard_mask === 'True' ? 'mask' : ''}`;
+          const line = svgElement('path', { d:pathData, class:className, 'marker-end':fact.may_drive_hard_mask === 'True' ? 'url(#arrowMask)' : 'url(#arrow)' });
+          const hit = svgElement('path', { d:pathData, class:'edge-hit', tabindex:'0', role:'button', 'aria-label':`${fact.subject} ${fact.relation} ${fact.object}` });
+          const entry = { fact, line, hit, index };
+          bindEdgeInteraction(entry);
+          $('graphEdges').append(line,hit);
+          graphElements.edges.push(entry);
+        });
+
+        graph.nodes.forEach(node => {
+          const position = positions.get(node.id);
+          const radius = node.distance === 0 ? GRAPH_CONFIG.centerRadius : GRAPH_CONFIG.nodeRadius;
+          const group = svgElement('g', { class:`graph-node ${node.distance === 0 ? 'focus' : ''}`, transform:`translate(${position.x} ${position.y})`, tabindex:'0', role:'button', 'aria-label':`${node.id}, ${node.type}` });
+          const color = GRAPH_CONFIG.colors[node.type] || GRAPH_CONFIG.colors.default;
+          group.append(svgElement('circle', { r:radius, fill:color }));
+          const label = svgElement('text', { y:radius + 16 });
+          label.textContent = shortLabel(node.id);
+          const title = svgElement('title');
+          title.textContent = `${node.id} (${node.type})`;
+          group.append(label,title);
+          bindNodeInteraction(group,node);
+          $('graphNodes').append(group);
+          graphElements.nodes.set(node.id, group);
+        });
+
+        resetView();
+        showNodeDetail(graph.nodes.find(node => node.id === graph.focus),false);
+        clearHighlight();
+        $('graphStatus').textContent = `${graph.nodes.length} nodes · ${graph.edges.length} relations · double-click a node to recenter`;
+      }
+
+      function clearHighlight() {
+        graphElements.nodes.forEach(element => element.classList.remove('graph-dim','active'));
+        graphElements.edges.forEach(entry => entry.line.classList.remove('graph-dim','graph-active'));
+      }
+
+      function highlightNode(nodeId) {
+        clearHighlight();
+        const connected = new Set([nodeId]);
+        graphElements.edges.forEach(entry => {
+          const incident = entry.fact.subject === nodeId || entry.fact.object === nodeId;
+          entry.line.classList.toggle('graph-dim',!incident);
+          entry.line.classList.toggle('graph-active',incident);
+          if (incident) { connected.add(entry.fact.subject); connected.add(entry.fact.object); }
+        });
+        graphElements.nodes.forEach((element,id) => {
+          element.classList.toggle('graph-dim',!connected.has(id));
+          element.classList.toggle('active',id === nodeId);
+        });
+      }
+
+      function highlightEdge(entry) {
+        clearHighlight();
+        graphElements.edges.forEach(candidate => {
+          const active = candidate === entry;
+          candidate.line.classList.toggle('graph-dim',!active);
+          candidate.line.classList.toggle('graph-active',active);
+        });
+        graphElements.nodes.forEach((element,id) => {
+          const active = id === entry.fact.subject || id === entry.fact.object;
+          element.classList.toggle('graph-dim',!active);
+          element.classList.toggle('active',active);
+        });
+      }
+
+      function applyPersistentSelection() {
+        if (!persistentSelection) return clearHighlight();
+        if (persistentSelection.kind === 'node') highlightNode(persistentSelection.id);
+        else {
+          const entry = graphElements.edges.find(item => item.fact.fact_id === persistentSelection.id);
+          if (entry) highlightEdge(entry);
+        }
+      }
+
+      function showTooltip(event,text) {
+        const box = $('graph').getBoundingClientRect();
+        $('graphTooltip').textContent = text;
+        $('graphTooltip').style.left = `${Math.min(box.width - 250,Math.max(4,event.clientX - box.left))}px`;
+        $('graphTooltip').style.top = `${Math.min(box.height - 65,Math.max(4,event.clientY - box.top))}px`;
+        $('graphTooltip').hidden = false;
+      }
+
+      function hideTooltip() { $('graphTooltip').hidden = true; }
+
+      function bindNodeInteraction(element,node) {
+        element.addEventListener('pointerenter', event => { highlightNode(node.id); showTooltip(event,`${node.id} · ${node.type.replaceAll('_',' ')}`); });
+        element.addEventListener('pointerleave', () => { hideTooltip(); applyPersistentSelection(); });
+        element.addEventListener('click', event => { event.stopPropagation(); persistentSelection = { kind:'node', id:node.id }; highlightNode(node.id); showNodeDetail(node); });
+        element.addEventListener('dblclick', event => { event.stopPropagation(); loadGraph(node.id); });
+        element.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); persistentSelection = { kind:'node', id:node.id }; highlightNode(node.id); showNodeDetail(node); } });
+      }
+
+      function bindEdgeInteraction(entry) {
+        const text = `${entry.fact.subject} — ${entry.fact.relation} → ${entry.fact.object}`;
+        entry.hit.addEventListener('pointerenter', event => { highlightEdge(entry); showTooltip(event,text); });
+        entry.hit.addEventListener('pointerleave', () => { hideTooltip(); applyPersistentSelection(); });
+        entry.hit.addEventListener('click', event => { event.stopPropagation(); persistentSelection = { kind:'edge', id:entry.fact.fact_id }; highlightEdge(entry); showEdgeDetail(entry.fact); });
+        entry.hit.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); persistentSelection = { kind:'edge', id:entry.fact.fact_id }; highlightEdge(entry); showEdgeDetail(entry.fact); } });
+      }
+
+      function showNodeDetail(node,isSelection = true) {
+        const displayedFacts = visibleGraph.edges.filter(fact => fact.subject === node.id || fact.object === node.id);
+        $('selectionTitle').textContent = node.id;
+        $('selectionHint').textContent = isSelection
+          ? 'Selected entity and its directly connected relations are highlighted.'
+          : 'Focus entity at the center of the displayed neighborhood.';
+        $('graphDetail').innerHTML = [
+          ['Entity type',node.type.replaceAll('_',' ')],
+          ['Graph distance',node.distance === 0 ? 'Focus entity' : `${node.distance} hop${node.distance === 1 ? '' : 's'}`],
+          ['Facts in complete KG',number((adjacency.get(node.id) || []).length)],
+          ['Relations displayed',number(displayedFacts.length)]
+        ].map(([term,value]) => `<dt>${esc(term)}</dt><dd>${esc(value)}</dd>`).join('');
+        $('centerSelection').hidden = node.id === visibleGraph.focus;
+        $('centerSelection').dataset.nodeId = node.id;
+      }
+
+      function showEdgeDetail(fact) {
+        const source = sources.get(fact.source_id) || {};
+        $('selectionTitle').textContent = fact.relation;
+        $('selectionHint').textContent = 'Selected relation and its two endpoint entities are highlighted.';
+        const fields = [
+          ['Subject',fact.subject], ['Object',fact.object], ['Layer',fact.layer],
+          ['Semantic role',fact.semantic_type], ['Hard-mask authority',fact.may_drive_hard_mask === 'True' ? 'Yes' : 'No'],
+          ['Confidence',fact.confidence], ['Source',source.publisher || fact.source_id]
+        ];
+        $('graphDetail').innerHTML = fields.map(([term,value]) => `<dt>${esc(term)}</dt><dd>${esc(value)}</dd>`).join('') +
+          (source.url ? `<dt>Evidence</dt><dd><a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">Open source</a></dd>` : '');
+        $('centerSelection').hidden = true;
+      }
+
+      function loadGraph(query) {
+        const node = findNode(query);
+        if (!node) {
+          $('graphStatus').textContent = `No entity found for “${query}”. Try a material, printer, or profile identifier.`;
+          return;
+        }
+        $('graphSeed').value = node.id;
+        renderGraph(buildNeighborhood(node.id,Number($('graphDepth').value)));
+        $('graphTitle').scrollIntoView({ behavior:'smooth', block:'start' });
+      }
+
+      function applyView() { $('graphViewport').setAttribute('transform',`translate(${view.x} ${view.y}) scale(${view.k})`); }
+      function changeZoom(factor) { view.k = Math.min(2.2,Math.max(.6,view.k * factor)); applyView(); }
+      function resetView() { view = { x:0, y:0, k:1 }; applyView(); }
+
+      $('factMetric').textContent = number(data.validation.facts_total);
+      $('decisionMetric').textContent = number(data.validation.decision_facts);
+      $('contextMetric').textContent = number(data.validation.representation_facts);
+      $('sourceMetric').textContent = number(data.validation.source_records);
+      $('maskMetric').textContent = number(data.validation.hard_mask_facts);
+
+      data.relations.map(item => item.relation).sort().forEach(relation => {
+        const option = document.createElement('option');
+        option.value = relation;
+        option.textContent = relation;
+        $('relation').append(option);
+      });
+
+      function applyFilters() {
+        const query = $('search').value.trim().toLowerCase();
+        const layer = $('layer').value;
+        const relation = $('relation').value;
+        const mask = $('mask').value;
+        filtered = facts.filter(fact => {
+          if (layer && fact.layer !== layer) return false;
+          if (relation && fact.relation !== relation) return false;
+          if (mask && fact.may_drive_hard_mask !== mask) return false;
+          if (!query) return true;
+          return [fact.subject, fact.relation, fact.object, fact.source_id, fact.semantic_type]
+            .some(value => String(value).toLowerCase().includes(query));
+        });
+        page = 0;
+        render();
+      }
+
+      function render() {
+        const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+        page = Math.min(page, pages - 1);
+        const start = page * pageSize;
+        const items = filtered.slice(start, start + pageSize);
+        $('rows').innerHTML = items.map((fact, index) => `
+          <tr data-index="${start + index}" tabindex="0" aria-label="Open provenance for ${esc(fact.subject)} ${esc(fact.relation)} ${esc(fact.object)}">
+            <td><span class="pill ${esc(fact.layer)}">${fact.layer === 'decision' ? 'Decision' : 'Context'}</span></td>
+            <td><code>${esc(fact.subject)}</code></td>
+            <td><code>${esc(fact.relation)}</code></td>
+            <td><code>${esc(fact.object)}</code></td>
+            <td>${esc(fact.semantic_type)}</td>
+            <td><code>${esc(fact.source_id)}</code></td>
+            <td>${esc(fact.confidence)}</td>
+            <td>${fact.may_drive_hard_mask === 'True' ? '<span class="pill mask">Hard mask</span>' : 'Context/ranking'}</td>
+          </tr>`).join('');
+        $('empty').hidden = items.length !== 0;
+        $('count').textContent = `${number(filtered.length)} of ${number(facts.length)} facts`;
+        $('pageLabel').textContent = `Page ${page + 1} of ${pages}`;
+        $('prev').disabled = page === 0;
+        $('next').disabled = page >= pages - 1;
+        document.querySelectorAll('tbody tr').forEach(row => {
+          const open = () => showDetail(filtered[Number(row.dataset.index)]);
+          row.addEventListener('click', open);
+          row.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
+        });
+      }
+
+      function showDetail(fact) {
+        activeFact = fact;
+        const source = sources.get(fact.source_id) || {};
+        const fields = [
+          ['Fact identifier', fact.fact_id], ['Layer', fact.layer], ['Subject', fact.subject],
+          ['Subject type', fact.subject_type], ['Relation', fact.relation], ['Object', fact.object],
+          ['Object type', fact.object_type], ['Semantic role', fact.semantic_type],
+          ['May drive hard mask', fact.may_drive_hard_mask], ['Confidence', fact.confidence],
+          ['Source identifier', fact.source_id], ['Publisher', source.publisher || 'Not recorded'],
+          ['Source type', source.source_type || 'Not recorded'], ['Evidence scope', fact.evidence_scope],
+          ['Retrieved', source.retrieved_date || 'Not recorded']
+        ];
+        $('detail').innerHTML = fields.map(([term, value]) => `<dt>${esc(term)}</dt><dd>${esc(value)}</dd>`).join('') +
+          (source.url ? `<dt>Source URL</dt><dd><a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.url)}</a></dd>` : '');
+        $('detailDialog').showModal();
+      }
+
+      ['search','layer','relation','mask'].forEach(id => $(id).addEventListener(id === 'search' ? 'input' : 'change', applyFilters));
+      $('prev').addEventListener('click', () => { page -= 1; render(); });
+      $('next').addEventListener('click', () => { page += 1; render(); });
+      $('closeDialog').addEventListener('click', () => $('detailDialog').close());
+      $('graphFromFact').addEventListener('click', () => {
+        if (!activeFact) return;
+        $('detailDialog').close();
+        loadGraph(activeFact.subject);
+      });
+      $('detailDialog').addEventListener('click', event => { if (event.target === $('detailDialog')) $('detailDialog').close(); });
+
+      $('loadGraph').addEventListener('click', () => loadGraph($('graphSeed').value));
+      $('graphSeed').addEventListener('keydown', event => { if (event.key === 'Enter') loadGraph($('graphSeed').value); });
+      $('graphDepth').addEventListener('change', () => loadGraph($('graphSeed').value));
+      $('centerSelection').addEventListener('click', () => loadGraph($('centerSelection').dataset.nodeId));
+      $('zoomIn').addEventListener('click', () => changeZoom(1.2));
+      $('zoomOut').addEventListener('click', () => changeZoom(1 / 1.2));
+      $('resetView').addEventListener('click', resetView);
+      $('graph').addEventListener('wheel', event => { event.preventDefault(); changeZoom(event.deltaY < 0 ? 1.12 : 1 / 1.12); }, { passive:false });
+      $('graph').addEventListener('click', event => {
+        if (event.target === $('graph')) {
+          persistentSelection = null;
+          clearHighlight();
+          $('selectionTitle').textContent = 'Explore a local neighborhood';
+          $('selectionHint').textContent = 'Hover to highlight direct connections. Select a node or edge to keep its evidence in view.';
+          $('graphDetail').replaceChildren();
+          $('centerSelection').hidden = true;
+        }
+      });
+
+      let dragState = null;
+      $('graph').addEventListener('pointerdown', event => {
+        if (event.target.closest('.graph-node') || event.target.closest('.edge-hit')) return;
+        dragState = { clientX:event.clientX, clientY:event.clientY, x:view.x, y:view.y };
+        $('graph').classList.add('dragging');
+        $('graph').setPointerCapture(event.pointerId);
+      });
+      $('graph').addEventListener('pointermove', event => {
+        if (!dragState) return;
+        const box = $('graph').getBoundingClientRect();
+        view.x = dragState.x + (event.clientX - dragState.clientX) * GRAPH_CONFIG.width / box.width;
+        view.y = dragState.y + (event.clientY - dragState.clientY) * GRAPH_CONFIG.height / box.height;
+        applyView();
+      });
+      const endDrag = () => { dragState = null; $('graph').classList.remove('dragging'); };
+      $('graph').addEventListener('pointerup', endDrag);
+      $('graph').addEventListener('pointercancel', endDrag);
+
+      render();
+      loadGraph('FIBERON_PA6_CF20');
+    })();
+  </script>
+</body>
+</html>

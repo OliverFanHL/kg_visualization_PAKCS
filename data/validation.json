@@ -1,0 +1,13 @@
+{
+  "facts_total": 24898,
+  "decision_facts": 131,
+  "representation_facts": 24767,
+  "source_records": 3607,
+  "hard_mask_facts": 58,
+  "validation": {
+    "unresolved_source_ids": [],
+    "profile_facts_allowed_to_mask": 0,
+    "invalid_confidence": 0,
+    "duplicate_fact_ids": 0
+  }
+}
